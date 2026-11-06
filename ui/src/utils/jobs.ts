@@ -82,6 +82,22 @@ export const sampleJobNow = (jobID: string) => {
   });
 };
 
+export const forkJob = (jobID: string) => {
+  return new Promise<Job>((resolve, reject) => {
+    apiClient
+      .post(`/api/jobs/${jobID}/fork`)
+      .then(res => res.data)
+      .then(data => {
+        console.log('Job forked:', data);
+        resolve(data as Job);
+      })
+      .catch(error => {
+        console.error('Error forking job:', error);
+        reject(error);
+      });
+  });
+};
+
 export const markJobAsStopped = (jobID: string) => {
   return new Promise<void>((resolve, reject) => {
     apiClient
@@ -109,12 +125,15 @@ export const getAvaliableJobActions = (job: Job) => {
   let canEdit = ['queued', 'completed', 'stopped', 'error'].includes(job.status) && !isStopping;
   const canRemoveFromQueue = job.status === 'queued';
   const canStop = job.status === 'running' && !isStopping;
+  // forking copies the job's checkpoint + optimizer files off disk, so the
+  // job must not be mid-write (running/stopping)
+  const canFork = !['running', 'stopping'].includes(job.status);
   let canStart = ['stopped', 'error'].includes(job.status) && !isStopping;
   // can resume if more steps were added
   if (job.status === 'completed' && (jobConfig.config.process[0].train?.steps || 0) > job.step && !isStopping) {
     canStart = true;
   }
-  return { canDelete, canEdit, canStop, canStart, canRemoveFromQueue };
+  return { canDelete, canEdit, canStop, canStart, canRemoveFromQueue, canFork };
 };
 
 export const getNumberOfSamples = (job: Job) => {

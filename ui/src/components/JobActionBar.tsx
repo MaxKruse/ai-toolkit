@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { Eye, Trash2, Pen, Play, Pause, Cog, X, Copy, Save, OctagonX, Image } from 'lucide-react';
+import { Eye, Trash2, Pen, Play, Pause, Cog, X, Copy, Save, OctagonX, Image, GitFork } from 'lucide-react';
 import { LuLoader } from 'react-icons/lu';
 import { Button } from '@headlessui/react';
 import { openConfirm } from '@/components/ConfirmModal';
@@ -9,6 +9,7 @@ import {
   startJob,
   stopJob,
   deleteJob,
+  forkJob,
   getAvaliableJobActions,
   markJobAsStopped,
   saveJobNow,
@@ -16,7 +17,7 @@ import {
 } from '@/utils/jobs';
 import { startQueue } from '@/utils/queue';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { openCaptionDatasetModal } from '@/components/CaptionDatasetModal';
 
 interface JobActionBarProps {
@@ -31,7 +32,7 @@ interface JobActionBarProps {
   menuAnchor?: 'bottom' | 'top end';
 }
 
-type PendingAction = 'start' | 'remove' | 'stop' | 'delete' | 'save' | 'sample' | 'markStopped';
+type PendingAction = 'start' | 'remove' | 'stop' | 'delete' | 'save' | 'sample' | 'markStopped' | 'fork';
 
 // If the job never reports a state change (e.g. the request silently failed
 // server-side), unlock the bar after this long so it can't stay stuck.
@@ -46,7 +47,8 @@ export default function JobActionBar({
   autoStartQueue = false,
   menuAnchor = 'bottom',
 }: JobActionBarProps) {
-  const { canStart, canStop, canDelete, canEdit, canRemoveFromQueue } = getAvaliableJobActions(job);
+  const { canStart, canStop, canDelete, canEdit, canRemoveFromQueue, canFork } = getAvaliableJobActions(job);
+  const router = useRouter();
 
   if (!afterDelete) afterDelete = onRefresh;
 
@@ -232,6 +234,31 @@ export default function JobActionBar({
                 <Copy className="w-4 h-4" />
                 Clone Job
               </Link>
+            </MenuItem>
+          )}
+          {job.job_type === 'train' && (
+            <MenuItem disabled={isBusy || !canFork}>
+              <div
+                className={isBusy || !canFork ? menuItemDisabledClass : menuItemEnabledClass}
+                title={canFork ? undefined : 'Stop the job before forking - its checkpoint files may be mid-write'}
+                onClick={() => {
+                  if (isBusy || !canFork) return;
+                  // does not change the source job's state, so release as soon
+                  // as the request resolves
+                  runAction(
+                    'fork',
+                    async () => {
+                      const forkedJob = await forkJob(job.id);
+                      if (onRefresh) onRefresh();
+                      router.push(`/jobs/${forkedJob.id}`);
+                    },
+                    false,
+                  );
+                }}
+              >
+                {pending === 'fork' ? menuSpinner : <GitFork className="w-4 h-4" />}
+                Fork Job
+              </div>
             </MenuItem>
           )}
           {job.job_type === 'train' && canStop && (

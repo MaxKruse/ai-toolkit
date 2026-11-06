@@ -177,6 +177,8 @@ pip install -r requirements.txt
 
 The AI Toolkit UI is a web interface for the AI Toolkit. It allows you to easily start, stop, and monitor jobs. It also allows you to easily train models with a few clicks. It also allows you to set a token for the UI to prevent unauthorized access so it is mostly safe to run on an exposed server.
 
+**Fork Job:** a training job that has saved at least one checkpoint can be forked from the job's gear menu. The fork is a new job that resumes from the original's latest checkpoint (weights, optimizer state and step counter), so the original can keep running to completion while you experiment with changed settings on the fork. The original job must be stopped (or otherwise not running) when forking.
+
 ## Running the UI
 
 Requirements:
